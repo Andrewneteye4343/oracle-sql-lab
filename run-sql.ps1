@@ -8,6 +8,9 @@
 #   .\run-sql.ps1 -File sql\show_schema.sql
 #   .\run-sql.ps1 "SELECT COUNT(*) FROM process_event WHERE out_ts IS NULL"
 #
+# SET EXITCOMMIT OFF: SQL*Plus commits pending DML on EXIT by default, so an ad-hoc
+# UPDATE would silently persist. Turn it off so uncommitted changes roll back.
+#
 # Why bash -lc: PowerShell treats a leading @ as a splatting operator, so sqlplus '@file'
 # arguments are passed inside a bash string instead.
 param(
@@ -30,7 +33,7 @@ if ($File -ne "") {
 }
 elseif ($Query -ne "") {
     $sqlPath = "/sql/_adhoc.sql"
-    $head = "SET DEFINE OFF`r`nWHENEVER SQLERROR EXIT SQL.SQLCODE`r`nSET LINESIZE 200`r`nSET PAGESIZE 200`r`nSET FEEDBACK OFF`r`n"
+    $head = "SET DEFINE OFF`r`nSET EXITCOMMIT OFF`r`nWHENEVER SQLERROR EXIT SQL.SQLCODE`r`nSET LINESIZE 200`r`nSET PAGESIZE 200`r`nSET FEEDBACK OFF`r`n"
     $body = $Query.Trim()
     if (-not $body.EndsWith(";")) { $body = "$body;" }
     $dest = Join-Path (Get-Location) "sql\_adhoc.sql"
