@@ -1,0 +1,29 @@
+# Oracle SQL Lab — 單一 Oracle Free 23ai 容器（社群映像 gvenzl/oracle-free）
+# 啟動：docker compose up -d      （第一次會初始化資料庫，約 2-4 分鐘）
+# 重建：docker compose down -v    （-v 會刪掉資料卷，初始化腳本才會再跑一次）
+services:
+  oracle:
+    image: gvenzl/oracle-free:23
+    container_name: sql-lab-oracle
+    ports:
+      - "1521:1521"
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:-OrclDev#2026}
+      APP_USER: ${APP_USER:-sqluser}
+      APP_USER_PASSWORD: ${APP_USER_PASSWORD:-SqlDev#2026}
+    volumes:
+      - oradata:/opt/oracle/oradata              # 資料落地，重啟不會重建
+      - ./db:/container-entrypoint-initdb.d:ro   # 只在「第一次初始化」時執行
+      - ./schema:/schema:ro                      # 由 001 腳本以 APP_USER 身分載入
+      - ./sql:/sql:ro                            # 你的練習與驗收查詢
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 20s
+      timeout: 10s
+      retries: 30
+      start_period: 120s
+    shm_size: 1g
+    tty: true
+
+volumes:
+  oradata:
