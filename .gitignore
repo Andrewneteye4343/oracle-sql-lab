@@ -2,5 +2,6 @@
 *.log
 *.dmp
 dump/
+sql/_adhoc.sql
 .DS_Store
 Thumbs.db
