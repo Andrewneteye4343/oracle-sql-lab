@@ -6,7 +6,7 @@
 # Usage:
 #   .\run-sql.ps1 "SELECT * FROM product"
 #   .\run-sql.ps1 -File sql\show_schema.sql
-#   .\run-sql.ps1 "SELECT COUNT(*) FROM process_event WHERE out_ts IS NULL"
+#   .\run-sql.ps1 -File sql\exercises\m03_where_order_andy.sql
 #
 # SET EXITCOMMIT OFF: SQL*Plus commits pending DML on EXIT by default, so an ad-hoc
 # UPDATE would silently persist. Turn it off so uncommitted changes roll back.
@@ -23,20 +23,30 @@ param(
 
 $ErrorActionPreference = "Stop"
 Set-Location (Split-Path -Parent $MyInvocation.MyCommand.Path)
+$sqlRoot = Join-Path (Get-Location).Path "sql"
 
 if ($File -ne "") {
     if (-not (Test-Path $File)) { Write-Host "File not found: $File"; exit 1 }
-    $leaf = Split-Path $File -Leaf
-    $dest = Join-Path (Get-Location) "sql\$leaf"
-    if ((Resolve-Path $File).Path -ne $dest) { Copy-Item $File $dest -Force }
-    $sqlPath = "/sql/$leaf"
+    $full = (Resolve-Path $File).Path
+    if ($full.StartsWith($sqlRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        # File already lives under .\sql : map it straight into the container path.
+        # Never copy, otherwise the repo accumulates duplicate copies under sql\.
+        $rel = $full.Substring($sqlRoot.Length)
+        $rel = $rel.Replace('\', '/').TrimStart('/')
+        $sqlPath = "/sql/$rel"
+    }
+    else {
+        $leaf = Split-Path $File -Leaf
+        Copy-Item $File (Join-Path $sqlRoot $leaf) -Force
+        $sqlPath = "/sql/$leaf"
+    }
 }
 elseif ($Query -ne "") {
     $sqlPath = "/sql/_adhoc.sql"
     $head = "SET DEFINE OFF`r`nSET EXITCOMMIT OFF`r`nWHENEVER SQLERROR EXIT SQL.SQLCODE`r`nSET LINESIZE 200`r`nSET PAGESIZE 200`r`nSET FEEDBACK OFF`r`n"
     $body = $Query.Trim()
     if (-not $body.EndsWith(";")) { $body = "$body;" }
-    $dest = Join-Path (Get-Location) "sql\_adhoc.sql"
+    $dest = Join-Path $sqlRoot "_adhoc.sql"
     $enc = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText($dest, $head + $body + "`r`nEXIT`r`n", $enc)
 }
